@@ -7,6 +7,32 @@ if (!isLoggedIn()) {
     exit;
 }
 
+// Обработка отметки выполнения
+if (isset($_POST['toggle_status'])) {
+    $taskId = $_POST['task_id'];
+    $tasksFile = TASKS_DIR . $_SESSION['user_id'] . '.txt';
+    
+    if (file_exists($tasksFile)) {
+        $lines = file($tasksFile, FILE_IGNORE_NEW_LINES);
+        $newTasks = [];
+        
+        foreach ($lines as $line) {
+            if (!empty(trim($line))) {
+                $task = explode('|', $line);
+                if (isset($task[0]) && $task[0] == $taskId) {
+                    // Меняем статус
+                    $task[3] = $task[3] == '1' ? '0' : '1';
+                }
+                $newTasks[] = implode('|', $task);
+            }
+        }
+        
+        file_put_contents($tasksFile, implode("\n", $newTasks));
+    }
+    header('Location: index.php');
+    exit;
+}
+
 // Получаем задачи пользователя
 $tasksFile = TASKS_DIR . $_SESSION['user_id'] . '.txt';
 $tasks = [];
@@ -94,10 +120,20 @@ if (!empty($tasks)) {
                 <?php foreach ($tasks as $task): ?>
                     <?php if (isset($task[1]) && isset($task[2]) && isset($task[3])): ?>
                         <div class="task <?= $task[3] ? 'completed' : '' ?>">
-                            <h3><?= htmlspecialchars($task[1]) ?></h3>
-                            <p><?= htmlspecialchars($task[2]) ?></p>
+                            <form method="post" class="status-form">
+                                <input type="hidden" name="task_id" value="<?= $task[0] ?>">
+                                <button type="submit" name="toggle_status" class="status-btn <?= $task[3] ? 'completed' : '' ?>">
+                                    <?= $task[3] ? '✅' : '⏳' ?>
+                                </button>
+                            </form>
+                            
+                            <div class="task-content">
+                                <h3><?= htmlspecialchars($task[1]) ?></h3>
+                                <p><?= htmlspecialchars($task[2]) ?></p>
+                            </div>
+                            
                             <div class="task-actions">
-                                <span class="status"><?= $task[3] ? '✅ Выполнено' : '⏳ В процессе' ?></span>
+                                <a href="edit_task.php?id=<?= $task[0] ?>" class="edit">Редактировать</a>
                                 <a href="delete_task.php?id=<?= $task[0] ?>" class="delete" onclick="return confirm('Удалить задачу?')">Удалить</a>
                             </div>
                         </div>
