@@ -13,20 +13,15 @@ if ($_POST) {
     $content = trim($_POST['content'] ?? '');
     
     if (!empty($title)) {
-        $tasksFile = TASKS_DIR . $_SESSION['user_id'] . '.txt';
-        
-        
-        $id = time();
-        
-        
-        $status = '0'; 
-        $taskData = "$id|$title|$content|$status\n";
-        
-        if (file_put_contents($tasksFile, $taskData, FILE_APPEND) !== false) {
+        try {
+            $stmt = $pdo->prepare("INSERT INTO tasks (user_id, title, content, status) VALUES (?, ?, ?, 0)");
+            $stmt->execute([$_SESSION['user_id'], $title, $content]);
+            
             header('Location: index.php');
             exit;
-        } else {
-            $error = 'Ошибка при сохранении задачи';
+            
+        } catch(PDOException $e) {
+            $error = 'Ошибка при создании задачи';
         }
     } else {
         $error = 'Название задачи обязательно';
@@ -49,7 +44,8 @@ if ($_POST) {
         <?php endif; ?>
         
         <form method="post">
-            <input type="text" name="title" placeholder="Название задачи" required value="<?= htmlspecialchars($_POST['title'] ?? '') ?>">
+            <input type="text" name="title" placeholder="Название задачи" required 
+                   value="<?= htmlspecialchars($_POST['title'] ?? '') ?>">
             <textarea name="content" placeholder="Описание задачи"><?= htmlspecialchars($_POST['content'] ?? '') ?></textarea>
             <div class="form-actions">
                 <button type="submit">Добавить</button>

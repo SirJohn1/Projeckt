@@ -1,7 +1,6 @@
 <?php
 require_once 'config.php';
 
-
 if (isLoggedIn()) {
     header('Location: index.php');
     exit;
@@ -16,21 +15,23 @@ if ($_POST) {
     if (empty($username) || empty($password)) {
         $error = 'Заполните все поля';
     } else {
-        
-        if (file_exists(USERS_FILE)) {
-            $lines = file(USERS_FILE, FILE_IGNORE_NEW_LINES);
-            foreach ($lines as $line) {
-                list($fileUsername, $filePassword) = explode('|', $line);
-                
-                if ($fileUsername === $username && password_verify($password, $filePassword)) {
-                    $_SESSION['user_id'] = $username;
-                    $_SESSION['username'] = $username;
-                    header('Location: index.php');
-                    exit;
-                }
+        try {
+            // Проверяем пользователя
+            $stmt = $pdo->prepare("SELECT id, username, password FROM users WHERE username = ?");
+            $stmt->execute([$username]);
+            $user = $stmt->fetch();
+            
+            if ($user && password_verify($password, $user['password'])) {
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['username'] = $user['username'];
+                header('Location: index.php');
+                exit;
+            } else {
+                $error = 'Неверное имя пользователя или пароль';
             }
+        } catch(PDOException $e) {
+            $error = 'Ошибка при входе';
         }
-        $error = 'Неверное имя пользователя или пароль';
     }
 }
 ?>

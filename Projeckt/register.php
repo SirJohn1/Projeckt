@@ -11,28 +11,23 @@ if ($_POST) {
     if (empty($username) || empty($password)) {
         $error = 'Заполните все поля';
     } else {
-        // Читаем существующих пользователей
-        $users = [];
-        if (file_exists(USERS_FILE)) {
-            $lines = file(USERS_FILE, FILE_IGNORE_NEW_LINES);
-            foreach ($lines as $line) {
-                $users[] = explode('|', $line);
-            }
-        }
-        
-        // Проверяем нет ли такого пользователя
-        foreach ($users as $user) {
-            if ($user[0] === $username) {
+        try {
+            // Проверяем нет ли такого пользователя
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
+            $stmt->execute([$username]);
+            
+            if ($stmt->rowCount() > 0) {
                 $error = 'Пользователь уже существует';
-                break;
+            } else {
+                // Сохраняем нового пользователя
+                $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+                $stmt = $pdo->prepare("INSERT INTO users (username, password) VALUES (?, ?)");
+                $stmt->execute([$username, $hashedPassword]);
+                
+                $success = 'Регистрация успешна! <a href="login.php">Войти</a>';
             }
-        }
-        
-        if (!$error) {
-            // Сохраняем нового пользователя
-            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-            file_put_contents(USERS_FILE, "$username|$hashedPassword\n", FILE_APPEND);
-            $success = 'Регистрация успешна! <a href="login.php">Войти</a>';
+        } catch(PDOException $e) {
+            $error = 'Ошибка при регистрации';
         }
     }
 }

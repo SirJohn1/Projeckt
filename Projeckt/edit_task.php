@@ -11,24 +11,16 @@ $task = null;
 
 // Получаем задачу для редактирования
 if (isset($_GET['id'])) {
-    $taskId = $_GET['id'];
-    $tasksFile = TASKS_DIR . $_SESSION['user_id'] . '.txt';
-    
-    if (file_exists($tasksFile)) {
-        $lines = file($tasksFile, FILE_IGNORE_NEW_LINES);
-        foreach ($lines as $line) {
-            if (!empty(trim($line))) {
-                $taskData = explode('|', $line);
-                if (isset($taskData[0]) && $taskData[0] == $taskId) {
-                    $task = $taskData;
-                    break;
-                }
-            }
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM tasks WHERE id = ? AND user_id = ?");
+        $stmt->execute([$_GET['id'], $_SESSION['user_id']]);
+        $task = $stmt->fetch();
+        
+        if (!$task) {
+            $error = 'Задача не найдена';
         }
-    }
-    
-    if (!$task) {
-        $error = 'Задача не найдена';
+    } catch(PDOException $e) {
+        $error = 'Ошибка при загрузке задачи';
     }
 }
 
@@ -39,30 +31,15 @@ if ($_POST && isset($_POST['save'])) {
     $content = trim($_POST['content'] ?? '');
     
     if (!empty($title)) {
-        $tasksFile = TASKS_DIR . $_SESSION['user_id'] . '.txt';
-        
-        if (file_exists($tasksFile)) {
-            $lines = file($tasksFile, FILE_IGNORE_NEW_LINES);
-            $newTasks = [];
+        try {
+            $stmt = $pdo->prepare("UPDATE tasks SET title = ?, content = ? WHERE id = ? AND user_id = ?");
+            $stmt->execute([$title, $content, $taskId, $_SESSION['user_id']]);
             
-            foreach ($lines as $line) {
-                if (!empty(trim($line))) {
-                    $taskData = explode('|', $line);
-                    if (isset($taskData[0]) && $taskData[0] == $taskId) {
-                        // Обновляем задачу
-                        $taskData[1] = $title;
-                        $taskData[2] = $content;
-                    }
-                    $newTasks[] = implode('|', $taskData);
-                }
-            }
+            header('Location: index.php');
+            exit;
             
-            if (file_put_contents($tasksFile, implode("\n", $newTasks)) !== false) {
-                header('Location: index.php');
-                exit;
-            } else {
-                $error = 'Ошибка при сохранении задачи';
-            }
+        } catch(PDOException $e) {
+            $error = 'Ошибка при сохранении задачи';
         }
     } else {
         $error = 'Название задачи обязательно';
@@ -91,12 +68,12 @@ if (!$task && !isset($_POST['save'])) {
         <?php endif; ?>
         
         <form method="post">
-            <input type="hidden" name="task_id" value="<?= $task[0] ?>">
+            <input type="hidden" name="task_id" value="<?= $task['id'] ?>">
             
             <input type="text" name="title" placeholder="Название задачи" required 
-                   value="<?= htmlspecialchars($task[1] ?? '') ?>">
+                   value="<?= htmlspecialchars($task['title']) ?>">
             
-            <textarea name="content" placeholder="Описание задачи"><?= htmlspecialchars($task[2] ?? '') ?></textarea>
+            <textarea name="content" placeholder="Описание задачи"><?= htmlspecialchars($task['content']) ?></textarea>
             
             <div class="form-actions">
                 <button type="submit" name="save">Сохранить</button>
